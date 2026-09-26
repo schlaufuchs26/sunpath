@@ -1,106 +1,63 @@
-# 🦊 frontend-template
+# Sunpath
 
-[![coverage](https://raw.githubusercontent.com/schlaufuchs26/frontend-template/badge/coverage.svg)](https://github.com/schlaufuchs26/frontend-template/actions/workflows/test.yml?query=branch%3Amain)
+Guess where on Earth a year of sunlight comes from.
 
-Minimal [Bun](https://bun.sh) + TypeScript + React starter for static web projects. Ships to GitHub Pages, devs locally with HMR.
+Every round shows one curve for an unknown place: either the hours the sun is
+up on each day of the year, or how high the sun climbs at noon. You move a
+dial to guess the latitude. The amplitude is the clue: a nearly flat curve
+means the equator, a curve pinned at 0 or 24 hours means a polar circle. The
+reveal names the place, draws your guess next to the truth, and tells you what
+its sun does there.
 
-## Quick Start
+Play: <https://schlaufuchs26.github.io/sunpath/>
+
+## Why this is not a copy
+
+Daylight graphs are everywhere as *calculators* (daylength.com, timeanddate,
+Engaging Data's sunlight visualisation), and latitude quizzes are everywhere
+as *lookup drills* (which cities lie on the Arctic Circle?). Neither has a
+guessing game that hands you the curve and asks for the latitude, which is the
+whole mechanic here. Checked against those tools and against the estimation
+genre (Fermi, Magnitudle, Guesscale) on 2026-09-26; the mechanic is not theirs.
+
+## Scoring
+
+Each round is worth 5,000 points, decaying as `exp(-Δlatitude / 8)`, so a miss
+of a degree or two keeps almost everything and a miss of thirty degrees keeps
+almost nothing. Two aids are available and both cut the round's ceiling:
+overlaying your own curve (−40%) and opening a coarse latitude band (−50%).
+
+## The model
+
+`src/astronomy.ts` computes everything from scratch:
+
+- Solar declination after Spencer (1971), accurate to about 0.01°.
+- Sunrise and sunset at a sun altitude of −0.833°, the usual convention for
+  the sun's upper limb with refraction; the same convention almanacs use.
+- Local mean solar time, so time zones, the equation of time and DST are not
+  modelled. Expect about a minute of error on a day length, more where the
+  equation of time is large.
+- The polar day/night stretches are counted from the sampled year, and they
+  wrap across New Year where they should (Longyearbyen: midnight sun 20 April
+  to 25 August, polar night 28 October to 15 February, against published dates
+  of 20 April to 22 August and 26 October to 16 February).
+
+Sanity checks against published almanac values sit in `tests/astronomy.test.ts`
+(Dresden 16 h 34 min in June, 7 h 54 min in December; Tromsø's midnight sun
+and polar night).
+
+## Development
 
 ```bash
-curl -fsSL https://bun.sh/install | bash  # if you haven't already
-
-git clone https://github.com/schlaufuchs26/frontend-template.git
-cd frontend-template
 bun install
-bun dev
+bun run dev        # dev server
+bun test           # unit tests with coverage gate
+bun run checks     # format, tsc, biome, knip, tests
+bun run test:e2e   # Playwright smoke tests (needs a browser)
+bun run build      # static bundle into dist/
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Deployment runs through GitHub Actions: `main` builds `dist/` and publishes it
+to GitHub Pages (`deploy.yml`).
 
-## Structure
-
-```
-index.html          — entry point for dev server and production build
-frontend.tsx         — React app (TSX)
-package.json        — React 19 + dev tooling
-tsconfig.json       — strict TS, ESNext
-bunfig.toml         — test preload + coverage thresholds
-biome.json          — formatter + linter config
-knip.json           — dead code detection
-playwright.config.ts — browser-test config (dev-server, Chromium path)
-.githooks/          — pre-commit hook (runs bun run checks)
-.github/workflows/  — CI: test, e2e, lint, typecheck, deploy, dead code
-scripts/            — coverage report + badge generators
-tests/              — Happy DOM + Testing Library setup, component tests
-e2e/                — Playwright browser tests (real Chromium)
-```
-
-## Scripts
-
-| Command | What it does |
-|---|---|
-| `bun dev` | Dev server with HMR on :3000 |
-| `bun run build` | Bundle index.html → dist/ (minified, production React) |
-| `bun test` | Run tests |
-| `bun run test:e2e` | Browser tests in real Chromium (needs a browser) |
-| `bun run test:coverage` | Text coverage report |
-| `bun run test:ci` | Generate coverage/lcov.info for CI |
-| `bun run checks` | Format + typecheck + lint + dead code + tests |
-
-### Production build
-
-`bun run build` clears `dist/`, then bundles with `--minify` and pins
-`process.env.NODE_ENV="production"`. Both flags are required: without them
-React ships its development build, which for this template is 975 kB with
-prop-type checks and dev warnings instead of 186 kB (measured 2026-09-11,
-Bun 1.3.13). Verify a build with `grep -c "process.env" dist/*.js` (prints
-0 when the define applied); `tests/build.test.ts` runs the build and fails
-on dev-only code.
-
-## Deploy
-
-Push to `main` and GitHub Actions deploys to Pages automatically:
-
-- **Build:** `bun install && bun run build`
-- **Deploy:** `dist/` → `https://schlaufuchs26.github.io/frontend-template/`
-
-Manual trigger: Actions → Deploy to GitHub Pages → Run workflow.
-
-## Testing
-
-Bun's built-in test runner + Happy DOM + Testing Library. Pre-configured in `bunfig.toml`. Tests auto-discover: `*.test.{ts,tsx}`, `*.spec.{ts,tsx}`.
-
-```bash
-bun test                   # run all tests
-bun run test:coverage      # text coverage report
-bun run test:ci            # generate coverage/lcov.info
-bun test --watch           # watch mode
-```
-
-### Coverage
-
-Thresholds enforced at 80% lines/functions/statements. On every push to `main`, the workflow generates a badge and force-pushes it to the `badge` branch — a single orphan commit, no history clutter. PRs get a sticky comment with per-file coverage.
-
-### Browser tests (Playwright)
-
-`bun run test:e2e` drives real Chromium against the dev server:
-`playwright.config.ts` starts `bun index.html` on port 4173, and
-`e2e/smoke.playwright.ts` checks the app boots, the counter reacts to a real
-click, and the shell centers without overflowing a 1280x757 laptop viewport.
-happy-dom has no layout engine, so geometry regressions pass every unit test;
-this suite is where they get caught. When a project outgrows the template,
-keep the file's shape and replace the assertions with that project's layout
-contract.
-
-CI installs Playwright's Chromium (`bunx playwright install --with-deps
-chromium`). On a box that ships Chromium via nix, like the fuchs host, set
-`PLAYWRIGHT_CHROMIUM_PATH` or rely on the default
-`/home/exedev/.nix-profile/bin/chromium` when it exists. A failing run uploads
-its HTML report as a workflow artifact.
-
-## Philosophy
-
-- **Zero-config dev server.** `bun index.html` gives you HMR, TSX transpilation, SPA routing, and bundling with no setup.
-- **No framework lock-in.** Just React. Swap to Vue, Svelte, or vanilla — change `frontend.tsx` and go.
-- **HTML-first.** Same `index.html` is the dev entry point and the build entry point. No dual files, no glue code.
-- **Grows with you.** Start here, add Tailwind, shadcn, whatever. No scaffolding to undo.
+Built from `schlaufuchs26/frontend-template`.

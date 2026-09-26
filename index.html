@@ -3,29 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bun + TS Template</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦊</text></svg>">
+  <meta name="description" content="Sunpath: guess a mystery place's latitude from one year of sunlight data." />
+  <title>Sunpath; guess the latitude from a year of sunlight</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☀️</text></svg>">
   <style>
     :root {
-      --bg: #0d0d0d;
-      --surface: #1a1a1a;
-      --text: #e0e0e0;
-      --muted: #888;
-      --accent: #f0a040;
+      --bg: #070b16;
+      --card: rgba(255, 255, 255, 0.045);
+      --line: rgba(255, 255, 255, 0.1);
+      --text: #e9eefb;
+      --muted: #94a3c4;
+      --accent: #f4b942;
+      --guess: #5ad1ff;
+      --good: #7ee08a;
+      --bad: #ff8a8a;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { box-sizing: border-box; }
     body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background:
+        radial-gradient(1100px 520px at 18% -12%, #1d2748 0%, rgba(7, 11, 22, 0) 62%),
+        radial-gradient(900px 420px at 92% 4%, #241b3a 0%, rgba(7, 11, 22, 0) 60%),
+        var(--bg);
+      color: var(--text);
+      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
     }
-    #root {
-      text-align: center;
+    .app { max-width: 900px; margin: 0 auto; padding: 30px 18px 60px; }
+    header { margin-bottom: 18px; }
+    h1 { font-size: clamp(2rem, 6vw, 2.9rem); margin: 0 0 0.2rem; letter-spacing: 0.01em; }
+    h1 .fox { font-size: 0.85em; }
+    h2 { font-size: 1.2rem; margin: 0 0 0.5rem; }
+    .tagline { color: var(--muted); margin: 0; max-width: 46ch; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 22px;
     }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .chart-title { margin-top: 16px; }
+    .rules { margin: 0 0 14px; padding-left: 20px; color: var(--text); }
+    .rules li { margin: 0.3rem 0; }
+    .muted { color: var(--muted); }
+    .pill {
+      display: inline-block;
+      padding: 2px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .score { font-variant-numeric: tabular-nums; color: var(--muted); }
+    button { font: inherit; cursor: pointer; border-radius: 12px; border: 1px solid transparent; padding: 10px 18px; }
+    button:disabled { opacity: 0.55; cursor: default; }
+    .btn-primary { background: var(--accent); color: #17223c; font-weight: 650; }
+    .btn-ghost { background: transparent; border-color: var(--line); color: var(--text); }
+    .btn-ghost[aria-pressed="true"] { border-color: var(--guess); color: var(--guess); }
+    .actions { justify-content: flex-start; margin-top: 18px; }
+    .chart-wrap { margin: 14px 0 4px; }
+    .chart { width: 100%; height: auto; display: block; }
+    .legend { display: flex; gap: 18px; color: var(--muted); font-size: 0.85rem; margin-top: 6px; }
+    .swatch { display: inline-block; width: 20px; height: 3px; border-radius: 2px; margin-right: 7px; vertical-align: middle; }
+    .dial { margin-top: 18px; }
+    .dial input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
+    .dial-readout { font-size: 1.6rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .ticks { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.78rem; }
+    .clue { margin: 10px 0 0; padding: 10px 14px; border-left: 3px solid var(--guess); background: rgba(90, 209, 255, 0.08); }
+    .verdict { margin-top: 16px; }
+    .verdict.great { color: var(--good); }
+    .verdict.good { color: var(--good); }
+    .verdict.ok { color: var(--accent); }
+    .verdict.poor { color: var(--bad); }
+    .reveal-line { font-size: 1.15rem; margin: 0.2rem 0; }
+    .place-line { margin: 0.2rem 0 0; color: var(--text); }
+    .facts { margin: 16px 0 20px; padding: 0; list-style: none; }
+    .facts li { margin: 0.25rem 0; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; }
+    td { overflow-wrap: anywhere; }
+    footer { color: var(--muted); font-size: 0.82rem; max-width: 60ch; }
   </style>
 </head>
 <body>
