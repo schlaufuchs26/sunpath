@@ -1,7 +1,7 @@
 {
-  "name": "frontend-template",
+  "name": "sunpath",
   "version": "0.1.0",
-  "description": "Minimal Bun + TypeScript + React template for web projects",
+  "description": "Sunpath: guess a mystery place's latitude from one year of sunlight",
   "type": "module",
   "scripts": {
     "dev": "bun index.html",
